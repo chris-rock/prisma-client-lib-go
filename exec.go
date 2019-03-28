@@ -28,7 +28,7 @@ func (client *Client) decode(exec *Exec, data map[string]interface{}, v interfac
 	return true, mapstructure.Decode(genericData, v)
 }
 
-func (exec *Exec) buildQuery() (string, map[string]interface{}) {
+func (exec *Exec) BuildQuery() (string, map[string]interface{}) {
 	var allArgs []graphQLArg
 	variables := make(map[string]interface{})
 	for i := range exec.Stack {
@@ -55,7 +55,19 @@ func (exec *Exec) buildQuery() (string, map[string]interface{}) {
 }
 
 func (exec *Exec) Exec(ctx context.Context, v interface{}) (bool, error) {
-	query, variables := exec.buildQuery()
+	query, variables := exec.BuildQuery()
+	data, err := exec.Client.GraphQL(ctx, query, variables)
+	if err != nil {
+		return false, err
+	}
+	if data == nil {
+		return false, nil
+	}
+
+	return exec.Client.decode(exec, data, v)
+}
+
+func (exec *Exec) ExecWithQuery(ctx context.Context, query string, variables map[string]interface{}, v interface{}) (bool, error) {
 	data, err := exec.Client.GraphQL(ctx, query, variables)
 	if err != nil {
 		return false, err
@@ -68,7 +80,7 @@ func (exec *Exec) Exec(ctx context.Context, v interface{}) (bool, error) {
 }
 
 func (exec *Exec) Exists(ctx context.Context) (bool, error) {
-	query, variables := exec.buildQuery()
+	query, variables := exec.BuildQuery()
 	data, err := exec.Client.GraphQL(ctx, query, variables)
 	if err != nil {
 		return false, err
@@ -100,7 +112,7 @@ func (exec *Exec) ExecArray(ctx context.Context, v interface{}) error {
 
 func (exec *BatchPayloadExec) Exec(ctx context.Context) (BatchPayload, error) {
 	sexec := &Exec{Stack: exec.stack}
-	query, variables := sexec.buildQuery()
+	query, variables := sexec.BuildQuery()
 
 	data, err := exec.client.GraphQL(ctx, query, variables)
 	if err != nil {
